@@ -392,7 +392,6 @@ async function bootWebGPU() {
       cameraBuf,
       camParamsBuf,
       particlesBuf,
-      MAX_CELLS,
       cellHeadsBuf,
       nextBuf,
       densityBuf,
