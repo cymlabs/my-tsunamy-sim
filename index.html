@@ -41,28 +41,28 @@
 
   <main>
     <section class="pane" id="pane-landing">
-      <div class="hero glass">
-        <p class="eyebrow">Cinematic Simulation</p>
-        <h1>Deluge</h1>
-        <p class="lede">Hyper-realistic tsunami command interface with God-view and time scrubbing.</p>
-        <div class="cta-row">
-          <button class="primary" id="cta-play">Play Now</button>
-          <button class="secondary" id="cta-overview">Show Command Center</button>
-        </div>
-      </div>
-      <div class="bottom-search glass">
-        <input type="search" placeholder="Search for name..." aria-label="Search">
-        <div class="pager">
-          <button aria-label="Previous">&#8249;</button>
-          <div class="dots">
-            <span class="dot active"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
+        <div class="hero glass">
+          <p class="eyebrow">Cinematic Simulation</p>
+          <h1>Deluge</h1>
+          <p class="lede">Hyper-realistic tsunami command interface with God-view and time scrubbing.</p>
+          <div class="cta-row">
+            <button class="primary" id="cta-play">Play Now</button>
+            <button class="secondary" id="cta-overview">Show Command Center</button>
           </div>
-          <button aria-label="Next">&#8250;</button>
         </div>
-      </div>
-    </section>
+        <div class="bottom-search glass">
+          <input id="search-input" type="search" placeholder="Search for name..." aria-label="Search">
+          <div class="pager">
+            <button aria-label="Previous" id="pager-prev">&#8249;</button>
+            <div class="dots">
+              <span class="dot active" data-index="0"></span>
+              <span class="dot" data-index="1"></span>
+              <span class="dot" data-index="2"></span>
+            </div>
+            <button aria-label="Next" id="pager-next">&#8250;</button>
+          </div>
+        </div>
+      </section>
 
     <section class="pane hidden" id="pane-map">
       <div class="hud glass variant-blue">
@@ -136,33 +136,33 @@
       </div>
     </section>
 
-    <section class="pane hidden" id="pane-share">
-      <div class="hud glass variant-green">
-        <header>
-          <p class="eyebrow">Share</p>
-          <h2>Mission Snapshot</h2>
-        </header>
-        <p class="lede">Export a snapshot with current timeline, casualty estimates, and destruction coverage.</p>
-        <div class="pill-row">
-          <button class="pill pill-strong">Copy Link</button>
-          <button class="pill">Generate Report</button>
+      <section class="pane hidden" id="pane-share">
+        <div class="hud glass variant-green">
+          <header>
+            <p class="eyebrow">Share</p>
+            <h2>Mission Snapshot</h2>
+          </header>
+          <p class="lede">Export a snapshot with current timeline, casualty estimates, and destruction coverage.</p>
+          <div class="pill-row">
+            <button class="pill pill-strong" id="btn-copy-link">Copy Link</button>
+            <button class="pill" id="btn-generate-report">Generate Report</button>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="pane hidden" id="pane-exit">
-      <div class="hud glass variant-red">
-        <header>
-          <p class="eyebrow">Exit Protocol</p>
-          <h2>Are you sure?</h2>
-        </header>
-        <p class="lede">Your current scenario state will be saved to the command log.</p>
-        <div class="pill-row">
-          <button class="pill pill-strong">Save & Quit</button>
-          <button class="pill">Cancel</button>
+      <section class="pane hidden" id="pane-exit">
+        <div class="hud glass variant-red">
+          <header>
+            <p class="eyebrow">Exit Protocol</p>
+            <h2>Are you sure?</h2>
+          </header>
+          <p class="lede">Your current scenario state will be saved to the command log.</p>
+          <div class="pill-row">
+            <button class="pill pill-strong" id="btn-save-quit">Save & Quit</button>
+            <button class="pill" id="btn-cancel-exit">Cancel</button>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
   </main>
 
   <script src="./app.js"></script>
