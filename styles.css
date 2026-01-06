@@ -528,6 +528,94 @@ main {
   margin-top: 6px;
 }
 
+/* ======================================
+   UI ENHANCEMENTS - VARIANT A (Safe Premium)
+   ====================================== */
+
+/* Button hover effects */
+.nav-btn,
+.pill,
+.primary,
+.secondary,
+.ghost {
+  cursor: pointer;
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+
+/* Active state (mouse down) */
+.nav-btn:active,
+.pill:active,
+.primary:active,
+.secondary:active,
+.ghost:active {
+  transform: scale(0.97);
+}
+
+/* Transition overlay for pane switching */
+#transition-overlay {
+  animation: transitionFadeOut 0.6s ease-out forwards;
+}
+
+@keyframes transitionFadeOut {
+  from {
+    background: rgba(0, 0, 0, 0.8);
+  }
+  to {
+    background: rgba(0, 0, 0, 0);
+  }
+}
+
+/* Accessibility: Respect motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .nav-btn,
+  .pill,
+  .primary,
+  .secondary,
+  .ghost {
+    transition: none;
+  }
+
+  #transition-overlay {
+    animation: none !important;
+    display: none !important;
+  }
+
+  button {
+    animation: none !important;
+  }
+}
+
+/* Mobile: Maintain touch feedback */
+@media (hover: none) and (pointer: coarse) {
+  .nav-btn,
+  .pill,
+  .primary,
+  .secondary,
+  .ghost {
+    transition: transform 150ms ease-out;
+  }
+
+  .nav-btn:active,
+  .pill:active,
+  .primary:active,
+  .secondary:active,
+  .ghost:active {
+    transform: scale(0.95);
+  }
+}
+
+/* Fallback for no-WebGL: Static button states */
+@supports not (backdrop-filter: blur(1px)) {
+  .nav-btn:hover,
+  .pill:hover,
+  .primary:hover,
+  .secondary:hover,
+  .ghost:hover {
+    opacity: 0.85;
+  }
+}
+
 @media (max-width: 768px) {
   .top-bar {
     flex-direction: column;

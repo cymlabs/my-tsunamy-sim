@@ -211,6 +211,106 @@ function wireCounters() {
   });
 }
 
+// --- Wire remaining buttons ---
+function wireRemainingButtons() {
+  // No GPU dismiss button
+  const noGpuDismiss = document.getElementById('no-gpu-dismiss');
+  if (noGpuDismiss) {
+    noGpuDismiss.addEventListener('click', () => {
+      const noGpuEl = document.getElementById('no-gpu');
+      if (noGpuEl) noGpuEl.classList.add('hidden');
+    });
+  }
+
+  // Pager buttons (Previous/Next)
+  const pagerButtons = document.querySelectorAll('.bottom-search button');
+  let currentDot = 0;
+  const dots = document.querySelectorAll('.dot');
+  
+  if (pagerButtons.length >= 2) {
+    pagerButtons[0]?.addEventListener('click', () => {
+      currentDot = (currentDot - 1 + dots.length) % dots.length;
+      updateDots();
+    });
+    pagerButtons[1]?.addEventListener('click', () => {
+      currentDot = (currentDot + 1) % dots.length;
+      updateDots();
+    });
+  }
+  
+  function updateDots() {
+    dots.forEach((dot, idx) => {
+      dot.classList.toggle('active', idx === currentDot);
+    });
+  }
+
+  // Map View control buttons
+  const btnPause = document.getElementById('btn-pause');
+  const btnReset = document.getElementById('btn-reset');
+  const btnSnapshot = document.getElementById('btn-snapshot');
+
+  if (btnPause) {
+    btnPause.addEventListener('click', () => {
+      const isPaused = btnPause.textContent === 'Resume';
+      btnPause.textContent = isPaused ? 'Pause' : 'Resume';
+      // Pause/resume simulation logic would go here
+    });
+  }
+
+  if (btnReset) {
+    btnReset.addEventListener('click', () => {
+      // Reset simulation logic
+      if (timeSlider) timeSlider.value = '0';
+      const event = new Event('input');
+      timeSlider?.dispatchEvent(event);
+    });
+  }
+
+  if (btnSnapshot) {
+    btnSnapshot.addEventListener('click', () => {
+      alert('Snapshot saved! This would normally export the current state.');
+      // Snapshot logic would go here
+    });
+  }
+
+  // Share pane buttons
+  const sharePills = document.querySelectorAll('#pane-share .pill');
+  if (sharePills[0]) {
+    sharePills[0].addEventListener('click', () => {
+      const url = window.location.href;
+      navigator.clipboard.writeText(url).then(() => {
+        alert('Link copied to clipboard!');
+      }).catch(() => {
+        alert('Could not copy link: ' + url);
+      });
+    });
+  }
+
+  if (sharePills[1]) {
+    sharePills[1].addEventListener('click', () => {
+      alert('Report generated! This would normally create a detailed PDF or HTML report.');
+      // Report generation logic would go here
+    });
+  }
+
+  // Exit pane buttons
+  const exitPills = document.querySelectorAll('#pane-exit .pill');
+  if (exitPills[0]) {
+    exitPills[0].addEventListener('click', () => {
+      alert('Scenario saved! Exiting application.');
+      // window.location.href = '/'; // Actual exit logic
+    });
+  }
+
+  if (exitPills[1]) {
+    exitPills[1].addEventListener('click', () => {
+      // Cancel exit - go back to map view
+      const mapBtn = Array.from(navTabs).find(btn => btn.dataset.pane === 'map');
+      if (mapBtn) mapBtn.click();
+    });
+  }
+}
+
 // --- WebGPU core (JS-adapted from phase5 demo, fixed palette) ---
 async function bootWebGPU() {
   if (!canvas) {
@@ -260,7 +360,6 @@ async function bootWebGPU() {
       cameraBuf,
       camParamsBuf,
       particlesBuf,
-      MAX_CELLS,
       cellHeadsBuf,
       nextBuf,
       densityBuf,
@@ -844,4 +943,5 @@ async function bootWebGPU() {
 wireTabs();
 populateControls();
 wireCounters();
+wireRemainingButtons();
 bootWebGPU();
