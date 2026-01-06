@@ -14,10 +14,65 @@ const btnAdvance = document.getElementById('btn-advance');
 const controlsSatellite = document.getElementById('controls-satellite');
 const controlsSettings = document.getElementById('controls-settings');
 const godStats = document.getElementById('god-stats');
+const noGpuCard = document.getElementById('no-gpu');
+const noGpuDismiss = document.getElementById('no-gpu-dismiss');
+const searchInput = document.getElementById('search-input');
+const pagerPrev = document.getElementById('pager-prev');
+const pagerNext = document.getElementById('pager-next');
+const pagerDots = document.querySelectorAll('.bottom-search .dot');
+const btnPause = document.getElementById('btn-pause');
+const btnReset = document.getElementById('btn-reset');
+const btnSnapshot = document.getElementById('btn-snapshot');
+const btnCopyLink = document.getElementById('btn-copy-link');
+const btnGenerateReport = document.getElementById('btn-generate-report');
+const btnSaveQuit = document.getElementById('btn-save-quit');
+const btnCancelExit = document.getElementById('btn-cancel-exit');
+const simButtons = [btnPause, btnReset, btnSnapshot, btnBackpedal, btnAdvance];
 
 function setStatus(msg, ok = true) {
   if (!statusEl) return;
   statusEl.innerHTML = `<span class="${ok ? 'ok' : 'bad'}">${ok ? '●' : '×'}</span> ${msg}`;
+}
+
+const paneNames = {
+  landing: 'Home',
+  map: 'Map view',
+  satellite: 'Satellite',
+  god: 'God Mode',
+  settings: 'Settings',
+  share: 'Share',
+  exit: 'Exit',
+};
+
+function switchPane(paneId, { updateHash = true } = {}) {
+  navTabs.forEach((b) => b.classList.remove('active'));
+  const targetBtn = Array.from(navTabs).find((btn) => btn.dataset.pane === paneId);
+  if (targetBtn) targetBtn.classList.add('active');
+  panes.forEach((pane) => pane.classList.toggle('hidden', pane.id !== `pane-${paneId}`));
+  const label = paneNames[paneId] || paneId.replace('-', ' ');
+  setStatus(`Showing ${label}`);
+  if (updateHash) {
+    const newHash = `#${paneId}`;
+    if (window.location.hash !== newHash) {
+      window.location.hash = newHash;
+    }
+  }
+}
+
+function syncPaneFromHash() {
+  const hash = window.location.hash.replace('#', '') || 'landing';
+  const validPane = panes && Array.from(panes).some((pane) => pane.id === `pane-${hash}`);
+  const target = validPane ? hash : 'landing';
+  switchPane(target, { updateHash: false });
+  return target;
+}
+
+function showNoGpu(message) {
+  if (!noGpuCard) return;
+  const body = noGpuCard.querySelector('.no-gpu-body');
+  if (body && message) body.textContent = message;
+  noGpuCard.classList.remove('hidden');
+  setControlsEnabled(false);
 }
 
 // --- Small helpers to reduce monolith size ---
@@ -90,36 +145,49 @@ function createCoreBuffers(device, MAX_PARTICLES, maxCells, bDimX, bDimZ, debris
 function wireTabs() {
   navTabs.forEach((btn) => {
     btn.addEventListener('click', () => {
-      navTabs.forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
       const target = btn.dataset.pane;
-      panes.forEach((pane) => pane.classList.toggle('hidden', pane.id !== `pane-${target}`));
+      if (target) switchPane(target);
     });
   });
 
   // Hero CTAs
   const heroPlay = document.getElementById('cta-play');
   const heroShow = document.getElementById('cta-overview');
-  const goPane = (paneId) => {
-    navTabs.forEach((b) => b.classList.remove('active'));
-    const mapBtn = Array.from(navTabs).find(btn => btn.dataset.pane === paneId);
-    if (mapBtn) mapBtn.classList.add('active');
-    panes.forEach((pane) => pane.classList.add('hidden'));
-    const targetPane = document.getElementById(`pane-${paneId}`);
-    if (targetPane) targetPane.classList.remove('hidden');
-  };
   if (heroPlay) {
     heroPlay.addEventListener('click', (e) => {
       e.preventDefault();
-      goPane('map');
+      switchPane('map');
+      setStatus('Opening map view');
     });
   }
   if (heroShow) {
     heroShow.addEventListener('click', (e) => {
       e.preventDefault();
-      goPane('map');
+      switchPane('map');
+      setStatus('Showing command center');
     });
   }
+
+  window.addEventListener('hashchange', () => {
+    syncPaneFromHash();
+  });
+}
+
+function validateTextures(device) {
+  try {
+    device.createTexture({ size: [4, 4], format: 'r16float', usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING });
+    device.createTexture({ size: [4, 4], format: 'rgba16float', usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING });
+  } catch (err) {
+    throw new Error('Required storage texture formats are unavailable on this GPU/browser.');
+  }
+}
+
+function setControlsEnabled(enabled) {
+  simButtons.forEach((btn) => {
+    if (!btn) return;
+    btn.disabled = !enabled;
+    btn.setAttribute('aria-disabled', String(!enabled));
+  });
 }
 
 function populateControls() {
@@ -178,8 +246,12 @@ function populateControls() {
 }
 
 function wireCounters() {
-  let deaths = 1245600;
-  let destruction = 78.5;
+  const baseDeaths = 1245600;
+  const baseDestruction = 78.5;
+  const defaultTime = timeSlider ? parseFloat(timeSlider.value) : 62;
+  let deaths = baseDeaths;
+  let destruction = baseDestruction;
+  let isPaused = false;
 
   const updateLabels = () => {
     if (statsDeaths) statsDeaths.textContent = deaths.toLocaleString();
@@ -189,47 +261,266 @@ function wireCounters() {
 
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
+  const setPaused = (paused) => {
+    isPaused = paused;
+    if (btnPause) btnPause.textContent = paused ? 'Resume' : 'Pause';
+    [timeSlider, btnBackpedal, btnAdvance].forEach((el) => {
+      if (el) el.disabled = paused;
+    });
+    setStatus(paused ? 'Simulation paused' : 'Simulation live');
+  };
+
   btnBackpedal?.addEventListener('click', () => {
+    if (isPaused) return;
     deaths = clamp(deaths - 12000, 0, 5_000_000);
     destruction = clamp(destruction - 0.6, 0, 100);
     if (timeSlider) timeSlider.value = String(Math.max(0, parseFloat(timeSlider.value) - 2));
     updateLabels();
+    setStatus('Timeline reversed');
   });
 
   btnAdvance?.addEventListener('click', () => {
+    if (isPaused) return;
     deaths = clamp(deaths + 18000, 0, 5_000_000);
     destruction = clamp(destruction + 0.8, 0, 100);
     if (timeSlider) timeSlider.value = String(Math.min(100, parseFloat(timeSlider.value) + 2));
     updateLabels();
+    setStatus('Timeline advanced');
   });
 
   timeSlider?.addEventListener('input', () => {
+    if (isPaused) return;
     const t = parseFloat(timeSlider.value);
     deaths = clamp(600000 + t * 9000, 0, 5_000_000);
     destruction = clamp(42 + t * 0.45, 0, 100);
     updateLabels();
+    setStatus('Scrubbing timeline');
+  });
+
+  btnPause?.addEventListener('click', () => {
+    setPaused(!isPaused);
+  });
+
+  btnReset?.addEventListener('click', () => {
+    setPaused(false);
+    deaths = baseDeaths;
+    destruction = baseDestruction;
+    if (timeSlider) timeSlider.value = String(defaultTime);
+    updateLabels();
+    setStatus('Simulation reset');
+  });
+
+  btnSnapshot?.addEventListener('click', () => {
+    const summary = `Time ${timeSlider ? timeSlider.value : '62'} • Estimated deaths ${deaths.toLocaleString()} • Destruction ${destruction.toFixed(1)}%`;
+    const fallbackCopy = () => {
+      const area = document.createElement('textarea');
+      area.value = summary;
+      area.setAttribute('readonly', '');
+      area.style.position = 'absolute';
+      area.style.left = '-9999px';
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      document.body.removeChild(area);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(summary)
+        .then(() => setStatus('Snapshot copied', true))
+        .catch(() => {
+          try {
+            fallbackCopy();
+            setStatus('Snapshot copied', true);
+          } catch (_) {
+            setStatus('Snapshot generated (copy failed)', false);
+          }
+        });
+    } else {
+      try {
+        fallbackCopy();
+        setStatus('Snapshot copied', true);
+      } catch (_) {
+        setStatus('Snapshot generated', true);
+      }
+    }
+  });
+}
+
+function wirePager() {
+  const names = ['Aisha', 'Bodhi', 'Carmen'];
+  let index = 0;
+
+  const update = () => {
+    pagerDots.forEach((dot, dotIndex) => {
+      dot.classList.toggle('active', dotIndex === index);
+    });
+    if (searchInput) searchInput.placeholder = `Search for ${names[index]}...`;
+  };
+
+  pagerPrev?.addEventListener('click', () => {
+    index = (index - 1 + names.length) % names.length;
+    update();
+    setStatus('Moved to previous search target');
+  });
+
+  pagerNext?.addEventListener('click', () => {
+    index = (index + 1) % names.length;
+    update();
+    setStatus('Moved to next search target');
+  });
+
+  pagerDots.forEach((dot) => {
+    dot.addEventListener('click', () => {
+      const dotIndex = Number(dot.dataset.index ?? 0);
+      if (!Number.isNaN(dotIndex)) {
+        index = dotIndex;
+        update();
+        setStatus('Search target selected');
+      }
+    });
+  });
+
+  searchInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const query = searchInput.value.trim();
+      const activeName = names[index];
+      setStatus(`Searching for ${query || activeName}`);
+    }
+  });
+
+  update();
+}
+
+function wireShare() {
+  const currentSummary = () =>
+    `Deluge • Time ${timeSlider ? timeSlider.value : '62'} • Deaths ${statsDeaths ? statsDeaths.textContent : '—'} • Destruction ${statsDestruction ? statsDestruction.textContent : '—'}`;
+
+  const fallbackCopy = (text) => {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'absolute';
+    area.style.left = '-9999px';
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    document.body.removeChild(area);
+  };
+
+  btnCopyLink?.addEventListener('click', () => {
+    const url = new URL(window.location.href);
+    const activePane = document.querySelector('.nav-btn.active')?.dataset.pane;
+    if (activePane) {
+      url.hash = activePane;
+    }
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(url.toString())
+        .then(() => setStatus('Link copied', true))
+        .catch(() => {
+          try {
+            fallbackCopy(url.toString());
+            setStatus('Link copied', true);
+          } catch (_) {
+            setStatus('Copy failed. Share manually.', false);
+          }
+        });
+    } else {
+      try {
+        fallbackCopy(url.toString());
+        setStatus('Link copied', true);
+      } catch (_) {
+        setStatus('Copy this link manually: ' + url.toString(), false);
+      }
+    }
+  });
+
+  btnGenerateReport?.addEventListener('click', () => {
+    const activePane = document.querySelector('.nav-btn.active')?.dataset.pane;
+    const url = new URL(window.location.href);
+    if (activePane) url.hash = activePane;
+    const report = `${currentSummary()} • Snapshot generated at ${new Date().toLocaleString()} • Link: ${url.toString()}`;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(report)
+        .then(() => setStatus('Report copied to clipboard', true))
+        .catch(() => {
+          try {
+            fallbackCopy(report);
+            setStatus('Report copied to clipboard', true);
+          } catch (_) {
+            setStatus('Report generated (copy failed)', false);
+          }
+        });
+    } else {
+      try {
+        fallbackCopy(report);
+        setStatus('Report copied to clipboard', true);
+      } catch (_) {
+        setStatus('Report generated', true);
+      }
+    }
+  });
+}
+
+function wireExit() {
+  btnSaveQuit?.addEventListener('click', () => {
+    setStatus('Progress saved. Returning to Home.', true);
+    switchPane('landing');
+  });
+
+  btnCancelExit?.addEventListener('click', () => {
+    setStatus('Exit cancelled', true);
+    switchPane('landing');
+  });
+}
+
+function wireNoGpu() {
+  noGpuDismiss?.addEventListener('click', () => {
+    noGpuCard?.classList.add('hidden');
   });
 }
 
 // --- WebGPU core (JS-adapted from phase5 demo, fixed palette) ---
 async function bootWebGPU() {
   if (!canvas) {
+    setStatus('Simulation canvas missing.', false);
+    showNoGpu('Simulation surface unavailable. Explore the UI panels instead.');
     return;
   }
   if (!('gpu' in navigator)) {
     setStatus('WebGPU not available. Use a modern Chrome/Edge.', false);
+    showNoGpu('WebGPU unavailable. The static interface remains usable.');
     return;
   }
-  try {
-    setStatus('Requesting GPU device…');
-    const adapter = await navigator.gpu.requestAdapter({
-      powerPreference: 'high-performance',
+    try {
+      setStatus('Requesting GPU device…');
+      const adapter = await navigator.gpu.requestAdapter({
+        powerPreference: 'high-performance',
+      });
+      if (!adapter) {
+        setStatus('No GPU adapter found. WebGPU disabled.', false);
+        showNoGpu('No compatible GPU adapter was found. Explore the static interface instead.');
+        return;
+      }
+      const device = await adapter.requestDevice();
+      validateTextures(device);
+      const context = canvas.getContext('webgpu');
+      if (!context) {
+        setStatus('WebGPU canvas context unavailable.', false);
+        showNoGpu('WebGPU context could not be created. The simulation view is disabled.');
+        return;
+      }
+      const preferredFormat = navigator.gpu.getPreferredCanvasFormat?.();
+      const format = preferredFormat || 'bgra8unorm';
+      context.configure({ device, format, alphaMode: 'opaque' });
+    device.lost.then((info) => {
+      console.warn('WebGPU device lost', info);
+      setStatus(`WebGPU device lost: ${info.message || 'unknown reason'}`, false);
+      setControlsEnabled(false);
+      showNoGpu('The GPU device was lost. Refresh to retry or continue with the static interface.');
     });
-    if (!adapter) throw new Error('No GPU adapter');
-    const device = await adapter.requestDevice();
-    const context = canvas.getContext('webgpu');
-    const format = navigator.gpu.getPreferredCanvasFormat();
-    context.configure({ device, format, alphaMode: 'opaque' });
+    setControlsEnabled(true);
     setStatus('WebGPU ready.');
 
     const shaderSrc = await loadShaderModules();
@@ -260,7 +551,6 @@ async function bootWebGPU() {
       cameraBuf,
       camParamsBuf,
       particlesBuf,
-      MAX_CELLS,
       cellHeadsBuf,
       nextBuf,
       densityBuf,
@@ -327,15 +617,15 @@ async function bootWebGPU() {
     const simBGL = device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-write-storage' } },
-        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-write-storage' } },
-        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-write-storage' } },
-        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-write-storage' } },
-        { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-write-storage' } },
-        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-write-storage' } },
-        { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-write-storage' } },
-        { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-write-storage' } },
-        { binding: 9, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-write-storage' } },
+        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        { binding: 9, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
       ],
     });
     const simPL = device.createPipelineLayout({ bindGroupLayouts: [simBGL] });
@@ -837,6 +1127,7 @@ async function bootWebGPU() {
   } catch (err) {
     console.error(err);
     setStatus(`WebGPU init failed: ${err.message}`, false);
+    showNoGpu('WebGPU initialization failed. Simulation view disabled.');
   }
 }
 
@@ -844,4 +1135,11 @@ async function bootWebGPU() {
 wireTabs();
 populateControls();
 wireCounters();
+wirePager();
+wireShare();
+wireExit();
+wireNoGpu();
+const initialPane = syncPaneFromHash();
+setStatus(`Showing ${paneNames[initialPane] || initialPane}`);
+setControlsEnabled(false);
 bootWebGPU();
