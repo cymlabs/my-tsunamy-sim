@@ -60,9 +60,13 @@ async function loadShaderModules() {
     'scene_debris.wgsl',
   ];
   const codes = await Promise.all(
-    shaderNames.map((n) => {
+    shaderNames.map(async (n) => {
       const url = new URL(`./webgpu/${n}`, window.location.href).toString();
-      return fetch(url).then((r) => r.text());
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Shader ${n} failed to load (${response.status})`);
+      }
+      return response.text();
     })
   );
   return {
@@ -423,6 +427,11 @@ async function bootWebGPU() {
   if (!canvas) {
     setStatus('Simulation canvas missing.', false);
     showNoGpu('Simulation surface unavailable. Explore the UI panels instead.');
+    return;
+  }
+  if (!window.isSecureContext) {
+    setStatus('WebGPU requires a secure context (HTTPS or localhost).', false);
+    showNoGpu('Secure context required for WebGPU. Use HTTPS or localhost to enable the simulation.');
     return;
   }
   if (!('gpu' in navigator)) {

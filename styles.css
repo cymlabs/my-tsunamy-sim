@@ -343,6 +343,48 @@ main {
   max-width: 640px;
 }
 
+.mission-card {
+  max-width: 520px;
+  padding: 24px;
+  display: grid;
+  gap: 12px;
+  background: linear-gradient(160deg, rgba(12, 30, 55, 0.78), rgba(6, 22, 42, 0.68));
+}
+
+.mission-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status-pill-inline {
+  background: rgba(68, 255, 178, 0.18);
+  color: var(--green);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(68, 255, 178, 0.35);
+  text-transform: uppercase;
+}
+
+.status-sub {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+
+.mission-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #dbe8ff;
+  display: grid;
+  gap: 6px;
+  line-height: 1.5;
+}
+
 .bottom-search input {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -383,6 +425,18 @@ main {
 .dot.active {
   background: #00eaff;
   box-shadow: 0 0 12px rgba(0, 234, 255, 0.8);
+}
+
+.bottom-search input:focus-visible,
+.pager button:focus-visible,
+.nav-btn:focus-visible,
+.primary:focus-visible,
+.secondary:focus-visible,
+.pill:focus-visible,
+.pill-strong:focus-visible,
+.ghost:focus-visible {
+  outline: 2px solid rgba(0, 234, 255, 0.8);
+  outline-offset: 2px;
 }
 
 .hud {
