@@ -466,6 +466,7 @@ async function bootWebGPU() {
     });
     setStatus('WebGPU ready.');
 
+    setStatus('Loading shaders…');
     const shaderSrc = await loadShaderModules();
     const simModule = device.createShaderModule({ code: shaderSrc.simModule });
     const depthModule = device.createShaderModule({ code: shaderSrc.depthModule });
@@ -1069,7 +1070,8 @@ async function bootWebGPU() {
     requestAnimationFrame(frame);
   } catch (err) {
     console.error(err);
-    setStatus(`WebGPU init failed: ${err.message}`, false);
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`WebGPU init failed: ${message}`, false);
     showNoGpu('WebGPU initialization failed. Simulation view disabled.');
   }
 }
