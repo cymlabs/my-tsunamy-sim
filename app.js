@@ -60,9 +60,13 @@ async function loadShaderModules() {
     'scene_debris.wgsl',
   ];
   const codes = await Promise.all(
-    shaderNames.map((n) => {
+    shaderNames.map(async (n) => {
       const url = new URL(`./webgpu/${n}`, window.location.href).toString();
-      return fetch(url).then((r) => r.text());
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Shader ${n} failed to load (${response.status})`);
+      }
+      return response.text();
     })
   );
   return {
@@ -425,6 +429,11 @@ async function bootWebGPU() {
     showNoGpu('Simulation surface unavailable. Explore the UI panels instead.');
     return;
   }
+  if (!window.isSecureContext) {
+    setStatus('WebGPU requires a secure context (HTTPS or localhost).', false);
+    showNoGpu('Secure context required for WebGPU. Use HTTPS or localhost to enable the simulation.');
+    return;
+  }
   if (!('gpu' in navigator)) {
     setStatus('WebGPU not available. Use a modern Chrome/Edge.', false);
     showNoGpu('WebGPU unavailable. The static interface remains usable.');
@@ -457,6 +466,7 @@ async function bootWebGPU() {
     });
     setStatus('WebGPU ready.');
 
+    setStatus('Loading shaders…');
     const shaderSrc = await loadShaderModules();
     const simModule = device.createShaderModule({ code: shaderSrc.simModule });
     const depthModule = device.createShaderModule({ code: shaderSrc.depthModule });
@@ -1060,7 +1070,8 @@ async function bootWebGPU() {
     requestAnimationFrame(frame);
   } catch (err) {
     console.error(err);
-    setStatus(`WebGPU init failed: ${err.message}`, false);
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`WebGPU init failed: ${message}`, false);
     showNoGpu('WebGPU initialization failed. Simulation view disabled.');
   }
 }
